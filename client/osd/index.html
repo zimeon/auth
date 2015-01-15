@@ -1,0 +1,80 @@
+
+<html>
+<head>
+<script src="openseadragon/openseadragon.min.js"></script>
+<script src="jquery-1.11.1.min.js"></script>
+</head>
+<body>
+
+<b>IIIF Open Sea Dragon Test</b>
+
+<div id="container">
+<div id="openseadragon" style="width: 800px; height: 600px; border: 2px solid purple" ></div>
+</div>
+<div id="authbox" style="margin-top: 10px; width: 800px; height: 50px; border: 2px solid green"></div>
+
+<div id="log" class="log"></div>
+
+<script type="text/javascript">
+var viewer = OpenSeadragon({
+    id: "openseadragon",
+    tileSources: "http://dlss-dev-azaroth.stanford.edu/services/iiif/f1rc/info.json?t=" + new Date().getTime(),
+    ajaxWithCredentials: true,
+    showNavigator: true
+});
+
+$('#authbox').hide()
+
+// check for an auth service ... once tileSource has loaded
+
+function on_authed() {
+
+    $('#openseadragon').remove();
+    $('#authbox').empty();
+    $('#authbox').append('<a href="http://dlss-dev-azaroth.stanford.edu/services/iiif/logout" target="_new">Logout</a>')
+
+    $('#container').append('<div id="openseadragon2" style="width: 800px; height: 600px; border: 2px solid purple" ></div>');
+
+    viewer = OpenSeadragon({
+        id: "openseadragon2",
+        tileSources: "http://dlss-dev-azaroth.stanford.edu/services/iiif/f1rc/info.json?t=" + new Date().getTime(),
+        showNavigator: true
+    });
+}
+
+function do_auth(evt) {
+    login = $(this).attr('data-login');
+
+    // The redirected to window will self-close
+    // open/closed state is the only thing we can see across domains :(
+    var win = window.open(login, 'loginwindow');
+    var pollTimer   =   window.setInterval(function() { 
+        if (win.closed) {
+            window.clearInterval(pollTimer);
+            on_authed();
+        }
+    }, 500);
+}
+
+function handle_open() {
+    var info = viewer.source;
+    if (info.hasOwnProperty('service')) {
+        if (info.service.hasOwnProperty('@context') && info.service['@context'] == 'http://iiif.io/api/auth/1/context.json') {
+            login = info.service['@id'];
+            $('#authbox').append("<button id='authbutton' data-login='"+login+"'>Authenticate</button>");
+            $('#authbutton').bind('click', do_auth);
+            $('#authbox').show()
+        }
+    } else {
+        $('#authbox').append('<a href="http://dlss-dev-azaroth.stanford.edu/services/iiif/logout" target="_new">Logout</a>')
+        $('#authbox').show()        
+    }
+}
+
+viewer.addHandler('open', handle_open)
+viewer.addHandler('failed-open', handle_open)
+</script>
+
+
+</body>
+</html>
