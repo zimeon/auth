@@ -4,10 +4,127 @@
 // github upload is via:
 //   https://developer.github.com/v3/repos/contents/#create-a-file
 
-var config = {'secret': '--- fill me in ---',
-              'user': 'IIIF',
-              'repo': 'auth',
-              'path': ''}
+var config = {
+  'items': ['secret', 'user', 'repo', 'path', 'layout'],
+  'propKeyPrefix': 'MARKDOWN_',
+  
+  'secret': {
+     'menuLabel': 'Set User Secret',
+     'menuFunction': 'showSecretPrompt',
+     'promptName': 'Github Access Token',
+     'defaultValue': '',
+     'propertyType': 'User',
+    'propKey': 'SECRET'
+  },
+  'user': {
+     'menuLabel': 'Set Github User',
+     'menuFunction': 'showUserPrompt',
+     'promptName': 'Github User',
+     'defaultValue': 'IIIF',
+     'propertyType': 'Document',
+    'propKey': 'USER'
+  },
+  'repo': {
+     'menuLabel': 'Set Github Repository',
+     'menuFunction': 'showRepoPrompt',
+     'promptName': 'Github Repository',
+     'defaultValue': 'iiif.io',
+     'propertyType': 'Document',
+    'propKey': 'REPO'
+  },
+  'path': {
+     'menuLabel': 'Set Github Path',
+     'menuFunction': 'showPathPrompt',
+     'promptName': 'Github Path',
+     'defaultValue': '',
+     'propertyType': 'Document',
+    'propKey': 'PATH'
+  },
+  'layout': {
+     'menuLabel': 'Set Jekyll Layout',
+     'menuFunction': 'showLayoutPrompt',
+     'promptName': 'Jekyll Layout',
+     'defaultValue': 'post',
+     'propertyType': 'Document',
+    'propKey': 'J_LAYOUT'
+  }
+}
+
+function onOpen() {
+  var menu = DocumentApp.getUi().createMenu('Export');
+  
+  for (var x=0,iname; iname=config['items'][x]; x++) {
+    var item = config[iname];
+    menu.addItem(item['menuLabel'], item['menuFunction']); 
+  }
+  menu.addItem('Export to Markdown', 'ConvertToMarkdown');
+  menu.addToUi();
+}
+
+function showSecretPrompt() {
+  showPrompt('secret');
+} 
+function showUserPrompt() {
+  showPrompt('user');
+} 
+function showRepoPrompt() {
+  showPrompt('repo');
+} 
+function showPathPrompt() {
+  showPrompt('path');
+} 
+function showLayoutPrompt() {
+  showPrompt('layout');
+} 
+
+function getConfigValue(which) {
+  var item = config[which];
+  if (item.propertyType == 'Document') {
+    var propSvc = PropertiesService.getDocumentProperties();
+  } else if (item.propertyType == 'User') {
+    var propSvc = PropertiesService.getUserProperties();    
+  }
+  var current = propSvc.getProperty(config.propKeyPrefix + item.propKey);
+  return current;
+}
+
+function showPrompt(which) {
+  var ui = DocumentApp.getUi();
+  var item = config[which]
+
+  if (item.propertyType == 'Document') {
+    var propSvc = PropertiesService.getDocumentProperties();
+  } else if (item.propertyType == 'User') {
+    var propSvc = PropertiesService.getUserProperties();    
+  }
+  var current = propSvc.getProperty(config.propKeyPrefix + item.propKey);
+  if (current == null) {
+    current = item.defaultValue;
+  }  
+  
+  var result = ui.prompt(
+    'Set the ' + item.promptName,
+    'Please enter the ' + item.promptName + ' (currently "'+current+'"):',
+    ui.ButtonSet.OK_CANCEL);
+
+  // Process the user's response.
+  var button = result.getSelectedButton();
+  var value = result.getResponseText();
+
+  if (button == ui.Button.OK) {
+    // User clicked "OK".
+    if (value == "") {
+      ui.alert("You didn't enter a " + item.promptName);
+    } else { 
+      propSvc.setProperty(config.propKeyPrefix + item.propKey, value);
+      ui.alert("Saved");
+    }
+  } else if (button == ui.Button.CANCEL || button == ui.Button.CLOSE) {
+    // User clicked "Cancel".
+    ui.alert("Canceled");
+  }
+}
+
 
 function ConvertToMarkdown() {
   var numChildren = DocumentApp.getActiveDocument().getActiveSection().getNumChildren();
@@ -16,7 +133,6 @@ function ConvertToMarkdown() {
   var inClass = false;
   var globalImageCounter = 0;
   var globalListCounters = {};
-  // edbacher: added a variable for indent in src <pre> block. Let style sheet do margin.
   var srcIndent = "";
   
   var attachments = [];
@@ -64,19 +180,35 @@ function ConvertToMarkdown() {
     } else if (inSrc) { // support empty lines inside source code
       text+='\n';
     }
-      
   }
   
-  var fileName = DocumentApp.getActiveDocument().getName()+".md";
-  fileName = fileName.replace(/ /g, "_");
+  var name = DocumentApp.getActiveDocument().getName();
+  var fileName = name.replace(/ /g, "_");
+  fileName = fileName
+  fileName = fileName.toLowerCase();
+  var uploadName = fileName + '.md';
+  
+  var layout = getConfigValue('layout');
+  var header = "---\ntitle: "+name+"\nid: "+fileName+"\nlayout: "+layout+"\n---\n\n";
+  text = header + text;
   var encoded = Utilities.base64Encode(text);
   
-  var url = "https://api.github.com/repos/"+config['user']+"/"+config['repo']+"/contents/" + config['path'] + fileName + "?access_token=" + config['secret'];
-  var json = '{"message":"Create from Google Docs","content":"'+encoded+'"}';
-  var options = {'method':'put', 'payload': json};
-  
-  var response = UrlFetchApp.fetch(url, options)
+  var secret = getConfigValue('secret');
+  var repo = getConfigValue('repo');
+  var ghuser = getConfigValue('user');
+  var path = getConfigValue('path');
 
+  var url = "https://api.github.com/repos/"+ghuser+"/"+repo+"/contents/" + path + uploadName + "?access_token=" + secret;
+  var json = '{"message":"Create from Google Docs","content":"'+encoded+'"}';
+  var options = {'method':'put', 'payload': json, 'muteHttpExceptions': true};  
+  
+  var response = UrlFetchApp.fetch(url, options);
+  var ui = DocumentApp.getUi();
+  if (response.getResponseCode() != 200) {
+    ui.alert("Failed to save to github, does it already exist?");  
+  } else {
+    ui.alert("Saved to Github");      
+  }
 }
 
 function escapeHTML(text) {
