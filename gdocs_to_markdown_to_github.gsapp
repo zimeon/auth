@@ -1,4 +1,9 @@
 
+// secret is a personal access token
+//   https://help.github.com/articles/creating-an-access-token-for-command-line-use/
+// github upload is via:
+//   https://developer.github.com/v3/repos/contents/#create-a-file
+
 var config = {'secret': '--- fill me in ---',
               'user': 'IIIF',
               'repo': 'auth',
