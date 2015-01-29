@@ -4,6 +4,7 @@
 // github upload is via:
 //   https://developer.github.com/v3/repos/contents/#create-a-file
 
+
 var config = {
   'items': ['secret', 'user', 'repo', 'path', 'layout'],
   'propKeyPrefix': 'MARKDOWN_',
@@ -57,10 +58,26 @@ function onOpen() {
     var item = config[iname];
     menu.addItem(item['menuLabel'], item['menuFunction']); 
   }
+  menu.addSeparator();
+  menu.addItem('Show Settings', 'showSettingsDialog');
   menu.addItem('Export to Markdown', 'ConvertToMarkdown');
   menu.addToUi();
 }
 
+function showSettingsDialog() {
+  // This is pretty terrible...
+  var txt = "Current Settings:\n\n";
+  var ui = DocumentApp.getUi();
+
+  for (var x=0,iname; iname=config['items'][x]; x++) {
+    var item = config[iname];
+    var value = getConfigValue(iname);
+    txt += (item.promptName + ': "' + value + '"\n');
+  }
+  ui.alert(txt);
+}
+
+// Can't introspect to find this as far as I can tell
 function showSecretPrompt() {
   showPrompt('secret');
 } 
@@ -85,6 +102,9 @@ function getConfigValue(which) {
     var propSvc = PropertiesService.getUserProperties();    
   }
   var current = propSvc.getProperty(config.propKeyPrefix + item.propKey);
+  if (current == null) {
+    current = item.defaultValue;
+  }   
   return current;
 }
 
