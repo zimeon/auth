@@ -31,25 +31,19 @@ CACHEDIR = HOMEDIR+"/data/webcache/"
 BASEURL = "http://dlss-dev-azaroth.stanford.edu/"
 PREFIX = "services/iiif"
 
-HOMEDIR = '/Users/azaroth'
-FILEDIRS = [HOMEDIR+'/Development/IIIF/demos/vatican/images/']
-CACHEDIR = HOMEDIR+'/Development/IIIF/demos/vatican/cache/'
-BASEURL = 'http://iiif-dev.localhost/'
-PREFIX = 'services/2.0'
-
 BASEPREF = BASEURL + PREFIX + '/'
 TILE_SIZE = 512
 
 class Settings(object):
-    GOOGLE_API_CLIENT_ID = ''      # FILL ME OUT
-    GOOGLE_API_CLIENT_SECRET = ''  # FILL ME OUT TOO
+    GOOGLE_API_CLIENT_ID = ''
+    GOOGLE_API_CLIENT_SECRET = ''
     REDIRECT_URI = BASEPREF+'home'
     GOOGLE_API_SCOPE = 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email'
     GOOGLE_OAUTH2_URL = 'https://accounts.google.com/o/oauth2/'
     GOOGLE_API_URL = 'https://www.googleapis.com/oauth2/v1/'
 settings = Settings()
 
-DEGRADE_IMAGES = False
+DEGRADE_IMAGES = True
 DEGRADED_NOACCESS = False
 DEGRADED_SIZE = 400
 DEGRADED_QUALITY = ""
@@ -60,10 +54,6 @@ class ImageApp(object):
 
     def __init__(self):
         self.identifiers = {}
-
-        sys.stderr.write("Reading dirs: %r" % FILEDIRS)
-        sys.stderr.flush()
-
         fns = []        
         for fd in FILEDIRS:
             for fmt in IMAGEFMTS:
@@ -118,11 +108,11 @@ class ImageApp(object):
         self.infoRe = re.compile("/" + id + '/info.json')
         self.badcharRe= re.compile('[\[\]?@#/]')
 
-    def send_file(self, filename, mt):
+    def send_file(self, filename, mt, status=200):
         fh = file(filename)
         data = fh.read()
         fh.close()
-        return self.send(data, status=200, ct=mt)
+        return self.send(data, status=status, ct=mt)
 
     def send(self, data, status=200, ct="text/plain"):
         response["content_type"] = ct
@@ -204,9 +194,11 @@ class ImageApp(object):
         if qualities:
             info["profile"][1]["qualities"] = qualities
 
-        if infoId.endswith('-degraded'):
-            # Add in service link
-            info['service'] = {'@context': 'http://iiif.io/api/auth/1/context.json', '@id':BASEPREF+'login', 'profile': 'iiif:auth-service'}
+        info['service'] = [
+                {'@context': 'http://iiif.io/api/image/2/auth_context.json', '@id':BASEPREF+'login', 'profile': 'http://iiif.io/api/image/2/auth/login', 'label': 'Login (%s)' % BASEPREF},
+                {'@context': 'http://iiif.io/api/image/2/auth_context.json', '@id':BASEPREF+'logout', 'profile': 'http://iiif.io/api/image/2/auth/logout', 'label': 'Logout (%s)' % BASEPREF},
+                {'@context': 'http://iiif.io/api/image/2/auth_context.json', '@id':BASEPREF+'token', 'profile': 'http://iiif.io/api/image/2/auth/token'}
+                ]
 
         data = json.dumps(info, sort_keys=True)
 
@@ -227,15 +219,20 @@ class ImageApp(object):
     def handle_GET(self, path):
 
         # First check auth
-
         if DEGRADE_IMAGES:
-            email = request.get_cookie("account", secret="abc-123-!@#")   
+            isAuthed = request.get_cookie("loggedin", secret="SECRET_HERE")   
+            authToken = request.headers.get('Authorization', '')
+            hasToken = len(authToken) > 0
         else:
-            email = True
+            isAuthed = True
+            hasToken = True
+
         degraded = False
 
         # http://{server}{/prefix}   /{identifier}/{region}/{size}/{rotation}/{quality}{.format}
         bits = path.split('/')
+
+        response['Access-Control-Allow-Origin'] =  '*'
 
         # Nasty but useful debugging hack
         if len(bits) == 1 and bits[0] == "list":
@@ -265,8 +262,6 @@ class ImageApp(object):
 
         response['Link'] = '<%s>;rel="profile"' % self.compliance
         # See: http://mortoray.com/2014/04/09/allowing-unlimited-access-with-cors/
-        response['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
-        response['Access-Control-Allow-Credentials'] = 'true'
 
         # Early cache check here
         fp = path
@@ -288,17 +283,21 @@ class ImageApp(object):
                 # no such format, early break
                 return self.error_msg('format', 'Unsupported format', status=400)
 
-        if not email and identifier.find('-degraded') == -1:
+        if identifier.find('-degraded') == -1:
             if mimetype.endswith('json'):
-                if DEGRADED_NOACCESS:
-                    # No access is special degraded
-                    redirect('%sno-access/info.json' % BASEPREF)
-                else:
-                    # Or restrict size to max edge of 400 as degradation   
-                    redirect('%s%s-degraded/info.json' % (BASEPREF, identifier))
-            else:
+                if not hasToken:
+                    if DEGRADED_NOACCESS:
+                        # No access is special degraded
+                        return self.send_file(fp, mimetype, status=401)
+
+                        # self.error_msg('auth', 'auth test', status=401)
+                        # redirect('%sno-access/info.json' % BASEPREF)
+                    else:
+                        # Or restrict size to max edge of 400 as degradation   
+                        redirect('%s%s-degraded/info.json' % (BASEPREF, identifier))
+            elif not isAuthed:
                 # Block access to images
-                return self.error_msg('auth', 'Not authenticated', status=403)
+                return self.error_msg('auth', 'Not authenticated', status=401)
 
         if os.path.exists(fp):
             # Will only ever be canonical, otherwise would redirect
@@ -564,9 +563,8 @@ class ImageApp(object):
             if DEGRADED_QUALITY:
                 nquality = {'gray':'L','bitonal':'1'}[DEGRADED_QUALITY]
                 image = image.convert(nquality)                
-            if DEGRADED_WATERMARK:
-                image = self.watermark(image)
-
+            #if DEGRADED_WATERMARK:
+            #    image = self.watermark(image)
                 
         if (w != info['width'] or h != info['height']):
             box = (x,y,x+w,y+h)
@@ -623,7 +621,9 @@ class ImageApp(object):
         return self.send(contents, ct=mimetype)
 
 
+
     def _get_token(self):
+        # Google OAuth2 helpers
         params = {
             'code': request.query.get('code'),
             'client_id': settings.GOOGLE_API_CLIENT_ID,
@@ -646,22 +646,9 @@ class ImageApp(object):
         return json.loads(urllib2.urlopen(req).read())
 
 
-    def home(self):
-
-        resp = self._get_token()
-        data = self._get_data(resp)
-
-        first = data.get('given_name', '')
-        last = data.get('family_name', '')
-        email = data.get('email', '')
-        name = data.get('name', '')
-        pic = data.get('picture', '')
-
-        response.set_cookie("account", email, secret="abc-123-!@#")
-        return self.send("<html><script>window.close();</script></html>", ct="text/html");
-        return self.send('{"success":1, "username":"%s","logout":"%slogout"}' % (email, BASEPREF), ct="application/json")
 
     def login(self):
+        # OAuth starts here. This will redirect User to Google
         params = {
             'response_type': 'code',
             'client_id': settings.GOOGLE_API_CLIENT_ID,
@@ -670,22 +657,76 @@ class ImageApp(object):
             'state': request.query.get('next'),
         }
         url = settings.GOOGLE_OAUTH2_URL + 'auth?' + urllib.urlencode(params)
-        response['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
-        response['Access-Control-Allow-Credentials'] = 'true'
+        response['Access-Control-Allow-Origin'] = '*'
         redirect(url)
+
+    def home(self):
+        # OAuth ends up back here from Google. This sets a cookie and closes window
+        # to trigger next step
+        resp = self._get_token()
+        data = self._get_data(resp)
+
+        first = data.get('given_name', '')
+        last = data.get('family_name', '')
+        email = data.get('email', '')
+        name = data.get('name', '')
+        pic = data.get('picture', '')
+        response.set_cookie("account", email, secret="SECRET_HERE")
+        return self.send("<html><script>window.close();</script></html>", ct="text/html");
+
+    def get_test_cookie(self):
+        response.set_cookie("loggedin", "test@example.com", secret="SECRET_HERE")
+        return self.send("<html><script>window.close();</script></html>", ct="text/html");        
+
+    def get_iiif_token(self):
+        # This is the next step -- client requests a token to send to info.json
+        # We're going to just copy it from our cookie.
+        # JSONP request to get the token to send to info.json in Auth'z header
+
+        callbackFn = request.query.get('callback', '')
+        authcode = request.query.get('code', '')
+        account = ''
+        try:
+            account = request.get_cookie('account', secret="SECRET_HERE")
+            response.delete_cookie('account', secret="SECRET_HERE")
+        except:
+            pass
+        if not account:
+            data = {"error":"client_unauthorized","error_description": "No login details received"}
+        else:
+            data = {"access_token":account, "token_type": "Bearer", "expires_in": 3600}
+            # Set the cookie for the image content
+            response.set_cookie('loggedin', account, secret="SECRET_HERE")
+        dataStr = json.dumps(data)
+
+        if callbackFn:
+            return self.send("%s(%s);" % (callbackFn, dataStr), ct="application/javascript")
+        else:
+            return self.send(dataStr, ct="application/json")
 
     def noaccess(self):
         noacc = {"@context": "http://iiif.io/api/image/2/context.json", "@id": BASEPREF+"no-access", "protocol": "http://iiif.io/api/image", "height": 1, "width": 1, "service": {"@context": "http://iiif.io/api/auth/1/context.json", "@id": BASEPREF+"login", "profile":"iiif:auth-service"}}
-        response['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
-        response['Access-Control-Allow-Credentials'] = 'true'
+        response['Access-Control-Allow-Origin'] = '*'
         return self.send(json.dumps(noacc), ct="application/json")
 
     def logout(self):
-        response.delete_cookie("account", secret="abc-123-!@#")
-        response['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
-        response['Access-Control-Allow-Credentials'] = 'true'
+        response.delete_cookie("account", secret="SECRET_HERE")
+        response.delete_cookie("loggedin", secret="SECRET_HERE")
+        response['Access-Control-Allow-Origin'] = '*'
         return self.send("<html><script>window.close();</script></html>", ct="text/html");
-        # return self.send('{"success":1, "username":""}', ct="application/json")
+
+    def get_client_code(self):
+
+        # Should have registration for clients etc, but this is just a reference implementation
+        data = {'authorization_code' : 'not-very-secret'}
+        dataStr = json.dumps(dataStr)
+        return self.send(dataStr, ct="application/json")
+
+    def opts(self, *args, **kw):
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = "GET,OPTIONS"
+        response.headers['Access-Control-Allow-Headers'] = 'Origin, Accept, Authorization'
+        return self.send("", ct="text/plain")
 
     def dispatch_views(self):
         # Auth experiments
@@ -693,9 +734,27 @@ class ImageApp(object):
         self.app.route('/login', ["GET"], getattr(self, "login", self.not_implemented))        
         self.app.route('/logout', ["GET"], getattr(self, "logout", self.not_implemented)) 
         self.app.route('/home', ["GET"], getattr(self, "home", self.not_implemented))
+        self.app.route('/token', ["GET"], getattr(self, "get_iiif_token", self.not_implemented))
+        self.app.route('/test_cookie', ["GET"], getattr(self, "get_test_cookie", self.not_implemented))
+        self.app.route('/client_code', ["POST"], getattr(self, "get_client_code", self.not_implemented))
 
         # Send everything to the one function
         self.app.route('/<path:re:.*>', ["get"], getattr(self, "handle_GET", self.not_implemented))
+
+        # Add OPTIONS support for cross domain preflight
+        # Must be better way to do it...
+        self.app.route('/no-access/info.json', ["OPTIONS"], getattr(self, "opts", self.not_implemented))
+        self.app.route('/login', ["OPTIONS"], getattr(self, "opts", self.not_implemented))        
+        self.app.route('/logout', ["OPTIONS"], getattr(self, "opts", self.not_implemented)) 
+        self.app.route('/home', ["OPTIONS"], getattr(self, "opts", self.not_implemented))
+        self.app.route('/token', ["OPTIONS"], getattr(self, "opts", self.not_implemented))
+        self.app.route('/client_code', ["OPTIONS"], getattr(self, "opts", self.not_implemented))
+        self.app.route('/test_cookie', ["OPTIONS"], getattr(self, "opts", self.not_implemented))
+
+        # Send everything to the one function
+        self.app.route('/<path:re:.*>', ["OPTIONS"], getattr(self, "opts", self.not_implemented))
+
+
 
     def not_implemented(self, *args, **kwargs):
         """Returns not implemented status."""
@@ -703,6 +762,7 @@ class ImageApp(object):
 
     def empty_response(self, *args, **kwargs):
         """Empty response"""
+        
 
     def error(self, error, message=None):
         """Returns the error response."""
