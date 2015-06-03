@@ -35,8 +35,9 @@ TILE_SIZE = 512
 print "Running with HOMEDIR = %s" % (HOMEDIR)
 
 class Settings(object):
-    GOOGLE_API_CLIENT_ID = '346953757904-jpoqarnr08c5h820j79qm4g7u35bapnn.apps.googleusercontent.com'
-    GOOGLE_API_CLIENT_SECRET = 'jr2Z1euLnHs7-ABwp7F7EFMa'
+    gcd=json.loads(open(HOMEDIR+'/client_secret.json').read())
+    GOOGLE_API_CLIENT_ID = gcd['web']['client_id']
+    GOOGLE_API_CLIENT_SECRET = gcd['web']['client_secret']
     REDIRECT_URI = BASEPREF+'home'
     GOOGLE_API_SCOPE = 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email'
     GOOGLE_OAUTH2_URL = 'https://accounts.google.com/o/oauth2/'
