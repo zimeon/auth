@@ -5,7 +5,7 @@ Plus build the collections branch of openseadragon and copy the openseadragon bu
 
 ## Running demo
 
-The demo page `index.html` assumes that an IIIF server is running at `http://localhost:8001` with the image `http://localhost:8001/tetons` (see <../../server>). Running a simply python webserver from this (`osd`) directory with `python -m SimpleHTTPServer` will generate the following on access to <http://localhost:8000/>:
+The demo page `index.html` assumes that an IIIF server is running at `http://localhost:8001` with the image `http://localhost:8001/tetons` (see /server in this repository). Running a simply python webserver from this (`osd`) directory with `python -m SimpleHTTPServer` will generate the following on access to <http://localhost:8000/>:
 
 ```sh
 simeon@Cider osd>python -m SimpleHTTPServer
@@ -36,4 +36,4 @@ The initial image will be degraded (no zoom) but a login button will be displaye
 
 ## OpenSeadragon versions
 
-At present this demonstration works only with OpenSeadragon < 2.0, latest is 1.2.1. With OpenSeadragon 2.0.0 the error message `Unable to open [object Object[: Unable to load TileSource` is displayed.
+At present this demonstration works only with OpenSeadragon < 2.0, latest is 1.2.1. With OpenSeadragon 2.0.0 the error message `Unable to open [object Object]: Unable to load TileSource` is displayed.
