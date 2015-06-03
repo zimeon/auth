@@ -1,14 +1,13 @@
-
 <script src="openseadragon/openseadragon.min.js"></script>
 <script src="jquery-1.11.1.min.js"></script>
 
-<h2>IIIF Open SeaDragon Authentication Test</h2>
+<h2>IIIF OpenSeadragon Authentication Test</h2>
 
 <div id="container" style="width: 805px; height: 605px;"></div>
 
 <div>
-<div id="authbox" style="margin-top: 10px; height: 50px; border: 2px solid green; width: 45%; float: left"></div>
-<div id="log" style="margin-top: 10px; height: 50px; border: 2px solid green; width: 45%; float: right"></div>
+<div id="authbox" style="margin-top: 10px; height: 3ex; border: 2px solid green; width: 45%; float: left"></div>
+<div id="log" style="margin-top: 10px; height: 40ex; border: 2px solid green; width: 45%; float: right"></div>
 </div>
 
 <script type="text/javascript">
@@ -24,7 +23,7 @@ function on_authed() {
     // via JSONP :(
     // XXX TODO: get the URL from the info.json
     log("Fetching Token");        
-    $.getJSON("http://dlss-dev-azaroth.stanford.edu/services/iiif/token?callback=?", on_tokened);
+    $.getJSON("http://localhost:8001/token?callback=?", on_tokened);
 }
 
 
@@ -50,7 +49,7 @@ function on_tokened(data) {
         $('#openseadragon').remove();
         $('#authbox').empty();
         $('#container').append('<div id="openseadragon" style="width: 800px; height: 600px; border: 2px solid purple" ></div>');
-        $.ajax({ url:"http://dlss-dev-azaroth.stanford.edu/services/iiif/f1rc/info.json", headers: {"Authorization":token}, cache: false, success: on_got_info });
+        $.ajax({ url:"http://localhost:8001/tetons/info.json", headers: {"Authorization":token}, cache: false, success: on_got_info });
     }
 }
 
@@ -64,7 +63,7 @@ function on_got_info(data) {
         id: "openseadragon",
         tileSources: data,
         showNavigator: true,
-        prefixUrl: "/auth/openseadragon/images/"
+        prefixUrl: "openseadragon/images/"
     });
 }
 
@@ -124,9 +123,9 @@ function make_viewer() {
 
     var viewer = OpenSeadragon({
         id: "openseadragon",
-        tileSources: "http://dlss-dev-azaroth.stanford.edu/services/iiif/f1rc/info.json?t=" + new Date().getTime(),
+        tileSources: "http://localhost:8001/tetons/info.json?t=" + new Date().getTime(),
         showNavigator: true,
-        prefixUrl: "/auth/openseadragon/images/"
+        prefixUrl: "openseadragon/images/"
     });
 
     viewer.addHandler('open', handle_open)
