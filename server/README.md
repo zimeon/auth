@@ -1,0 +1,2 @@
+
+Set up Google credentials at <https://developers.google.com/identity/protocols/OpenIDConnect>. Want to sign up for a web application and must set the origin and redirect URIs. The redirect URI is `BASEPREF+/home` on the auth servers.

@@ -1,7 +1,7 @@
 
-egg_cache = "/home/lyberadmin/Web/scripts/egg_cache"
+#egg_cache = "/home/lyberadmin/Web/scripts/egg_cache"
 import os
-os.environ['PYTHON_EGG_CACHE'] = egg_cache
+#os.environ['PYTHON_EGG_CACHE'] = egg_cache
 
 import json
 import bottle
@@ -20,23 +20,23 @@ try:
 except:
     import Image
 
-HOMEDIR = "/home/lyberadmin"
-BASEDIR = HOMEDIR + "Web/root/osd/"
+HOMEDIR = os.path.dirname(os.path.realpath(__file__)) #use this script dir
+BASEDIR = HOMEDIR + "/osd/"
 FILEDIRS = [
- HOMEDIR+"/data/images/"
+ HOMEDIR+"/images/"
 ]
 IMAGEFMTS = ['png', 'jpg', 'tif']
-CACHEDIR = HOMEDIR+"/data/webcache/"
-
-BASEURL = "http://dlss-dev-azaroth.stanford.edu/"
-PREFIX = "services/iiif"
-
-BASEPREF = BASEURL + PREFIX + '/'
+CACHEDIR = HOMEDIR+"/webcache/"
+BASEURL = "http://localhost:8001/"
+PREFIX = ""
+BASEPREF = BASEURL + PREFIX
 TILE_SIZE = 512
 
+print "Running with HOMEDIR = %s" % (HOMEDIR)
+
 class Settings(object):
-    GOOGLE_API_CLIENT_ID = ''
-    GOOGLE_API_CLIENT_SECRET = ''
+    GOOGLE_API_CLIENT_ID = '346953757904-jpoqarnr08c5h820j79qm4g7u35bapnn.apps.googleusercontent.com'
+    GOOGLE_API_CLIENT_SECRET = 'jr2Z1euLnHs7-ABwp7F7EFMa'
     REDIRECT_URI = BASEPREF+'home'
     GOOGLE_API_SCOPE = 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email'
     GOOGLE_OAUTH2_URL = 'https://accounts.google.com/o/oauth2/'
@@ -620,8 +620,6 @@ class ImageApp(object):
 
         return self.send(contents, ct=mimetype)
 
-
-
     def _get_token(self):
         # Google OAuth2 helpers
         params = {
@@ -719,7 +717,7 @@ class ImageApp(object):
 
         # Should have registration for clients etc, but this is just a reference implementation
         data = {'authorization_code' : 'not-very-secret'}
-        dataStr = json.dumps(dataStr)
+        dataStr = json.dumps(data)
         return self.send(dataStr, ct="application/json")
 
     def opts(self, *args, **kw):
@@ -787,7 +785,7 @@ def apache():
 
 def main():
     host = "localhost"
-    port = 8000
+    port = 8001
     imgapp = ImageApp()
     app=imgapp.get_bottle_app()
 
