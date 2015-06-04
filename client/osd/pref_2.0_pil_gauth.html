@@ -3,18 +3,16 @@
 
 <h2>IIIF OpenSeadragon Authentication Test</h2>
 
-<div id="container" style="width: 805px; height: 605px;"></div>
-
-<div>
-<div id="authbox" style="margin-top: 10px; height: 3ex; border: 2px solid green; width: 45%; float: left"></div>
-<div id="log" style="margin-top: 10px; height: 40ex; border: 2px solid green; width: 45%; float: right"></div>
-</div>
+<div id="container" style="width: 605px; height: 405px;"></div>
+<div id="authbox" style="margin-top: 10px; height: 3ex; border: 2px solid green; width: 605px;"></div>
+<div id="log" style="margin-top: 10px; height: 20ex; border: 2px solid green; width: 605px; overflow: auto;"></div>
 
 <script type="text/javascript">
 
-
+var linenum=0;
 function log(text) {
-    $('#log').append(text + "<br>");
+    linenum=linenum+1
+    $('#log').prepend("[" + linenum + "] " + text + "<br>");
 }
 
 // check for an auth service ... once tileSource has loaded
@@ -48,7 +46,7 @@ function on_tokened(data) {
         // Okay, make authed viewer
         $('#openseadragon').remove();
         $('#authbox').empty();
-        $('#container').append('<div id="openseadragon" style="width: 800px; height: 600px; border: 2px solid purple" ></div>');
+        $('#container').append('<div id="openseadragon" style="width: 600px; height: 400px; border: 2px solid purple" ></div>');
         $.ajax({ url:"http://localhost:8001/2.0_pil_gauth/tetons/info.json", headers: {"Authorization":token}, cache: false, success: on_got_info });
     }
 }
@@ -118,7 +116,7 @@ function make_viewer() {
 
     $('#openseadragon').remove();
     $('#authbox').empty();
-    $('#container').append('<div id="openseadragon" style="width: 800px; height: 600px; border: 2px solid purple" ></div>');
+    $('#container').append('<div id="openseadragon" style="width: 600px; height: 400px; border: 2px solid purple" ></div>');
     var where = $("#openseadragon");
 
     var viewer = OpenSeadragon({
