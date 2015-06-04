@@ -37,3 +37,9 @@ The initial image will be degraded (no zoom) but a login button will be displaye
 ## OpenSeadragon versions
 
 At present this demonstration works only with OpenSeadragon < 2.0, latest is 1.2.1. With OpenSeadragon 2.0.0 the error message `Unable to open [object Object]: Unable to load TileSource` is displayed.
+
+## Issues with demo
+
+1. At present this demo has hard-coded the `/token` URI. It should instead have only the URI of the non-degrated image information. 
+
+2. It seems that osd makes and OPTIONS request after auth and if this isn't right then it won't work. Is it possible to make this non-critical?
