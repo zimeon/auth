@@ -201,7 +201,7 @@ class ImageApp(object):
                 {'@context': 'http://iiif.io/api/image/2/auth_context.json', '@id':BASEPREF+'token', 'profile': 'http://iiif.io/api/image/2/auth/token'}
                 ]
 
-        data = json.dumps(info, sort_keys=True)
+        data = json.dumps(info, sort_keys=True, indent=2 )
 
         try:
             os.mkdir(infoId)
