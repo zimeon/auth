@@ -40,6 +40,6 @@ At present this demonstration works only with OpenSeadragon < 2.0, latest is 1.2
 
 ## Issues with demo
 
-  # At present this demo has hard-coded the `/token` URI. It should instead have only the URI of the non-degrated image information. 
-  # It seems that osd makes and OPTIONS request after auth and if this isn't right then it won't work. Is it possible to make this non-critical?
-  # Demo client does not look for our use optional clientId service
+  1. At present this demo has hard-coded the `/token` URI. It should instead have only the URI of the non-degrated image information. 
+  2. It seems that osd makes and OPTIONS request after auth and if this isn't right then it won't work. Is it possible to make this non-critical?
+  3. Demo client does not look for our use optional clientId service
